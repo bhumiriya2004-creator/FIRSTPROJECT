@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Performance Dashboard</title>
+    <script src="[cdn.jsdelivr.net](https://cdn.jsdelivr.net/npm/chart.js)"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .slicer-box select {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* KPI Cards */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .card h3 { margin: 0; font-size: 0.9rem; color: #64748b; text-transform: uppercase; }
+        .card .value { font-size: 1.8rem; font-weight: bold; color: var(--primary); margin: 10px 0; }
+
+        /* Charts Section */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            min-height: 300px;
+        }
+
+        /* Table Section */
+        .table-container {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            overflow-x: auto;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th { text-align: left; padding: 12px; background: #f1f5f9; position: sticky; top: 0; }
+        td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
+        
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+        .badge-aplus { background: #dcfce7; color: #15803d; }
+        .badge-a { background: #dbeafe; color: #1e40af; }
+
+        @media (max-width: 600px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .kpi-row { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <header>
+        <h1>Madhyamik Report 2024</h1>
+        <div class="slicer-box">
+            <select id="sectionFilter" onchange="filterData()">
+                <option value="All">All Sections</option>
+                <option value="A">Section A</option>
+                <option value="B">Section B</option>
+                <option value="C">Section C</option>
+                <option value="D">Section D</option>
+                <option value="E">Section E</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- KPI Cards -->
+    <div class="kpi-row">
+        <div class="card">
+            <h3>Total Students</h3>
+            <div id="kpi-total" class="value">50</div>
+        </div>
+        <div class="card">
+            <h3>Avg. Percentage</h3>
+            <div id="kpi-avg" class="value">82.1%</div>
+        </div>
+        <div class="card">
+            <h3>Highest Score</h3>
+            <div id="kpi-high" class="value">676</div>
+        </div>
+        <div class="card">
+            <h3>Pass Rate</h3>
+            <div class="value" style="color:var(--success)">100%</div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="charts-grid">
+        <div class="chart-container">
+            <canvas id="gradePieChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="subjectBarChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="charts-grid">
+        <div class="chart-container">
+            <canvas id="performanceLineChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="genderColumnChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Student Table -->
+    <div class="table-container">
+        <h3>Topper List</h3>
+        <table id="studentTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Roll</th>
+                    <th>Sec</th>
+                    <th>Total</th>
+                    <th>%</th>
+                    <th>Grade</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Data injected by JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Sample Data based on your Excel file
+    const students = [
+        {id:'M001', name:'Aarav Das', sec:'A', roll:1001, total:588, perc:84.0, grade:'A+'},
+        {id:'M002', name:'Riya Roy', sec:'A', roll:1002, total:624, perc:89.1, grade:'A+'},
+        {id:'M004', name:'Priya Singh', sec:'A', roll:1004, total:652, perc:93.1, grade:'A+'},
+        {id:'M012', name:'Sneha Ghosh', sec:'B', roll:1012, total:633, perc:90.4, grade:'A+'},
+        {id:'M016', name:'Tania Roy', sec:'B', roll:1016, total:662, perc:94.6, grade:'A+'},
+        {id:'M020', name:'Ishita Roy', sec:'B', roll:1020, total:648, perc:92.6, grade:'A+'},
+        {id:'M030', name:'Kritika Das', sec:'C', roll:1030, total:669, perc:95.6, grade:'A+'},
+        {id:'M050', name:'Madhurima Das', sec:'E', roll:1050, total:676, perc:96.6, grade:'A+'}
+    ];
+
+    let gradeChart, subjectChart, lineChart, genderChart;
+
+    function initCharts() {
+        // 1. Grade Distribution (Pie)
+        gradeChart = new Chart(document.getElementById('gradePieChart'), {
+            type: 'pie',
+            data: {
+                labels: ['A+', 'A', 'B+', 'B'],
+                datasets: [{
+                    data: [28, 10, 8, 4],
+                    backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444']
+                }]
+            },
+            options: { plugins: { title: { display: true, text: 'Grade Distribution' }}}
+        });
+
+        // 2. Avg Subject Marks (Bar)
+        subjectChart = new Chart(document.getElementById('subjectBarChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Eng', 'Beng', 'Math', 'Phys', 'Life', 'Hist', 'Geog'],
+                datasets: [{
+                    label: 'Avg Marks',
+                    data: [78, 81, 88, 84, 82, 79, 81],
+                    backgroundColor: '#2563eb'
+                }]
+            },
+            options: { indexAxis: 'y', responsive: true }
+        });
+
+        // 3. Performance Trend (Line)
+        lineChart = new Chart(document.getElementById('performanceLineChart'), {
+            type: 'line',
+            data: {
+                labels: ['Roll 1001', 'Roll 1010', 'Roll 1020', 'Roll 1030', 'Roll 1040', 'Roll 1050'],
+                datasets: [{
+                    label: 'Total Score Trend',
+                    data: [588, 590, 648, 669, 648, 676],
+                    borderColor: '#2563eb',
+                    tension: 0.3
+                }]
+            }
+        });
+
+        // 4. Gender Comparison (Column)
+        genderChart = new Chart(document.getElementById('genderColumnChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Male', 'Female'],
+                datasets: [{
+                    label: 'Avg Percentage',
+                    data: [74.5, 87.8],
+                    backgroundColor: ['#3b82f6', '#ec4899']
+                }]
+            }
+        });
+    }
+
+    function filterData() {
+        const selected = document.getElementById('sectionFilter').value;
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        
+        const filtered = selected === 'All' ? students : students.filter(s => s.sec === selected);
+        
+        filtered.forEach(s => {
+            const row = `<tr>
+                <td>${s.id}</td>
+                <td>${s.name}</td>
+                <td>${s.roll}</td>
+                <td>${s.sec}</td>
+                <td><b>${s.total}</b></td>
+                <td>${s.perc}%</td>
+                <td><span class="badge ${s.grade === 'A+' ? 'badge-aplus' : 'badge-a'}">${s.grade}</span></td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+
+        // Update KPI
+        document.getElementById('kpi-total').innerText = filtered.length;
+    }
+
+    window.onload = () => {
+        initCharts();
+        filterData();
+    };
+</script>
+</body>
+</html>
